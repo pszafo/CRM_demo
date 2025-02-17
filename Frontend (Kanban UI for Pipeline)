@@ -1,0 +1,70 @@
+import { useState, useEffect } from "react";
+
+const stages = ["Lead", "Contacted", "Negotiation", "Closed"];
+
+export default function Pipeline() {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/leads")
+      .then(res => res.json())
+      .then(data => {
+        setLeads(data);
+        setLoading(false);
+      });
+  }, []);
+
+  const moveLead = (leadId, newStage) => {
+    fetch(`/api/leads/${leadId}/move-stage/`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_stage: newStage }),
+    })
+      .then(() => {
+        setLeads(prevLeads =>
+          prevLeads.map(lead =>
+            lead.id === leadId ? { ...lead, stage: newStage } : lead
+          )
+        );
+      });
+  };
+
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold text-center">Sales Pipeline</h1>
+      <div className="flex space-x-4 mt-6">
+        {stages.map(stage => (
+          <div key={stage} className="w-1/4 bg-gray-100 p-4 rounded-md shadow-md">
+            <h2 className="font-bold text-lg">{stage}</h2>
+            {loading ? (
+              <p>Loading...</p>
+            ) : (
+              leads
+                .filter(lead => lead.stage === stage)
+                .map(lead => (
+                  <div key={lead.id} className="bg-white p-2 mt-2 shadow-md rounded-md">
+                    <p className="font-bold">{lead.name}</p>
+                    <p className="text-sm">{lead.company}</p>
+                    <div className="mt-2">
+                      {stages.map(s =>
+                        s !== stage ? (
+                          <button
+                            key={s}
+                            onClick={() => moveLead(lead.id, s)}
+                            className="text-blue-500 text-sm mr-2"
+                          >
+                            Move to {s}
+                          </button>
+                        ) : null
+                      )}
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
