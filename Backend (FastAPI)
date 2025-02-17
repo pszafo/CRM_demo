@@ -1,0 +1,41 @@
+from fastapi import FastAPI, HTTPException
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime, timedelta
+
+app = FastAPI()
+
+DATABASE_URL = "postgresql://user:password@localhost/zafo_crm"
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Lead(Base):
+    __tablename__ = "leads"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
+    company = Column(String, index=True)
+    job_title = Column(String)
+    stage = Column(String, default="Lead")  # Pipeline stage
+    deal_value = Column(Float, default=0.0)
+    win_probability = Column(Float, default=0.0)
+    last_contacted = Column(DateTime, default=None)
+    next_followup = Column(DateTime, default=None)
+
+Base.metadata.create_all(bind=engine)
+
+@app.put("/leads/{lead_id}/move-stage/")
+def move_lead_stage(lead_id: int, new_stage: str):
+    db = SessionLocal()
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        db.close()
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    lead.stage = new_stage
+    db.commit()
+    db.refresh(lead)
+    db.close()
+    return {"message": f"Lead moved to {new_stage}"}
